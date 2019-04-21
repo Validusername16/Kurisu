@@ -3,6 +3,7 @@ import discord
 import re
 from discord.ext import commands
 from discord import Color
+import string
 
 class Err:
     """
@@ -153,21 +154,22 @@ class Err:
         8: 'Camera already in use/busy (qtm).',
         10: 'Not enough memory (os)',
         26: 'Session closed by remote (os)',
+        32: 'Empty CIA? (AM)',
         37: 'Invalid NCCH? (AM)',
         39: 'Invalid title version (AM)',
         43: 'Database doesn\'t exist/failed to open (AM)',
         44: 'Trying to uninstall system-app (AM)',
         47: 'Invalid command header (OS)',
-        335: '(No permission? Seemed to appear when JKSM was being used without its XML.)',
         101: 'Archive not mounted/mount-point not found (fs)',
         105: 'Request timed out (http)',
         106: 'Invalid signature/CIA? (AM)',
         120: 'Title/object not found? (fs)',
         141: 'Gamecard not inserted? (fs)',
-        190: 'Failed to write file. Partition is full.',
+        190: 'Object does already exist/failed to create object.',
         230: 'Invalid open-flags / permissions? (fs)',
         250: 'FAT operation denied (fs?)',
         271: 'Invalid configuration (mvd).',
+        335: '(No permission? Seemed to appear when JKSM was being used without its XML.)',
         391: 'NCCH hash-check failed? (fs)',
         392: 'RSA/AES-MAC verification failed? (fs)',
         393: 'Invalid database? (AM)',
@@ -215,6 +217,7 @@ class Err:
         '002-0123': 'System is generally banned by Nintendo. You cannot ask how to fix this issue here.',
         '003-1099': 'Access point could not be found with the given SSID.',
         '003-2001': 'DNS error. If using a custom DNS server, make sure the settings are correct.',
+        '005-2008': 'This error is caused by installing a game or game update from an unofficial source, as it contains a bad ticket.\nThe only solution is to delete the unofficial game or update as well as its ticket\nin FBI, and install the game or update legitimately. If the title was uninstalled\nalready, remove the ticket in FBI.',
         '005-4800': 'HTTP Status 500 (Internal Error), unknown cause(?). eShop servers might have issues.',
         '005-5602': 'Unable to connect to the eShop. This error is most likely the result of an incorrect region setting.\nMake sure your region is correctly set in System Settings. If you encounter this error after region-changing your system, make sure you followed all the steps properly.',
         '005-5964': 'Your Nintendo Network ID has been banned from accessing the eShop.\nIf you think this was unwarranted, you will have to contact Nintendo Support to have it reversed.',
@@ -229,6 +232,7 @@ class Err:
         '007-2404': 'An error occurred while attempting to connect to the Nintendo eShop.\nMake sure you are running the latest firmware, since this error will appear if you are trying to access the eShop on older versions.',
         '007-2720': 'SSL error?',
         '007-2916': 'HTTP error, server is probably down. Try again later?',
+        '007-2920': 'This error is caused by installing a game or game update from an unofficial source, as it contains a bad ticket.\nThe only solution is to delete the unofficial game or update as well as its ticket\nin FBI, and install the game or update legitimately. If the title was uninstalled\nalready, remove the ticket in FBI.',
         '007-2913': 'HTTP error, server is probably down. Try again later?',
         '007-2923': 'The Nintendo Servers are currently down for maintenance. Please try again later.',
         '007-3102': 'Cannot find title on Nintendo eShop. Probably pulled.',
@@ -236,6 +240,7 @@ class Err:
         '009-1000': 'System update required. (friends module?)',
         '009-2916': 'NIM HTTP error, server is probably down. Try again later?',
         '009-2913': 'NIM HTTP error, server is probably down. Try again later?',
+        '009-2920': 'This error is caused by installing a game or game update from an unofficial source, as it contains a bad ticket.\nThe only solution is to delete the unofficial game or update as well as its ticket\nin FBI, and install the game or update legitimately. If the title was uninstalled\nalready, remove the ticket in FBI.',
         '009-4079': 'Could not access SD card. General purpose error.',
         '009-4998': '"Local content is newer."\nThe actual cause of this error is unknown.',
         '009-6106': '"AM error in NIM."\nProbably a bad ticket.',
@@ -295,6 +300,7 @@ class Err:
         '2168-0001': ['Resource/Handle not available. (No known support page)', None],
         '2168-0002': ['Segmentation Fault. (No known support page)', None],
         '2168-0003': ['Memory access must be 4 bytes aligned. (No known support page)', None],
+        '2181-4008': ['System is permanently banned by Nintendo. You cannot ask how to fix this issue here.', 'https://en-americas-support.nintendo.com/app/answers/detail/a_id/42061'],
         '2811-5001': ['General connection error.', 'http://en-americas-support.nintendo.com/app/answers/detail/a_id/22392/p/897'],
     }
 
@@ -315,6 +321,18 @@ class Err:
             await self.bot.say(binascii.unhexlify(hex(271463605137058211622646033881424078611212374995688473904058753630453734836388633396349994515442859649191631764050721993573)[2:]).decode('utf-8'))
         elif rc == 2343432205:
             await self.bot.say(binascii.unhexlify(hex(43563598107828907579305977861310806718428700278286708)[2:]).decode('utf-8'))
+
+    async def convert_zerox(self, err):
+        err = err.strip()
+        if err.startswith("0x"):
+            err = err[2:]
+        rc = int(err, 16)
+        await self.aaaa(rc)
+        desc = rc & 0x3FF
+        mod = (rc >> 10) & 0xFF
+        summ = (rc >> 21) & 0x3F
+        level = (rc >> 27) & 0x1F
+        return desc, mod, summ, level, rc
 
     @commands.command(pass_context=True)
     async def err(self, ctx, err: str):
@@ -356,16 +374,8 @@ class Err:
                 else:
                     embed.color = embed.Empty
                     embed.description = "I don't know this one! Click the error code for details on Nintendo Support.\n\nIf you keep getting this issue and Nintendo Support does not help, and know how to fix it, you should report relevant details to <@78465448093417472> so it can be added to the bot."
-        else:
-            err = err.strip()
-            if err.startswith("0x"):
-                err = err[2:]
-            rc = int(err, 16)
-            await self.aaaa(rc)
-            desc = rc & 0x3FF
-            mod = (rc >> 10) & 0xFF
-            summ = (rc >> 21) & 0x3F
-            level = (rc >> 27) & 0x1F
+        elif err.startswith("0x") or all(c in string.hexdigits for c in err):
+            desc, mod, summ, level, rc = await self.convert_zerox(err)
 
             # garbage
             embed = discord.Embed(title="0x{:X}".format(rc))
@@ -373,20 +383,18 @@ class Err:
             embed.add_field(name="Description", value=self.get_name(self.descriptions, desc), inline=False)
             embed.add_field(name="Summary", value=self.get_name(self.summaries, summ), inline=False)
             embed.add_field(name="Level", value=self.get_name(self.levels, level), inline=False)
+        else:
+            return await self.bot.say("Invalid error code.")
+
         await self.bot.say("", embed=embed)
 
     @commands.command(pass_context=True)
     async def err2(self, ctx, err: str):
-        err = err.strip()
-        if err.startswith("0x"):
-            err = err[2:]
-        rc = int(err, 16)
-        await self.aaaa(rc)
-        desc = rc & 0x3FF
-        mod = (rc >> 10) & 0xFF
-        summ = (rc >> 21) & 0x3F
-        level = (rc >> 27) & 0x1F
+        if not err.startswith("0x") and not all(c in string.hexdigits for c in err):
+            return await self.bot.say("Invalid error code.")
 
+        desc, mod, summ, level, rc = await self.convert_zerox(err)
+ 
         # garbage
         embed = discord.Embed(title="0x{:X}".format(rc))
         value = self.get_name(self.modules, mod, 'module') + '\n'
@@ -395,10 +403,6 @@ class Err:
         value += self.get_name(self.levels, level, 'level')
         embed.description = value
         await self.bot.say("", embed=embed)
-
-    @commands.command(pass_context=True, hidden=True)
-    async def ninerr(self, ctx):
-        await self.bot.say("Merged with " + ctx.prefix + "err, use that instead")
 
 def setup(bot):
     bot.add_cog(Err(bot))

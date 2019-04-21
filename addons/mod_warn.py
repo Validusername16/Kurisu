@@ -2,6 +2,8 @@ import discord
 import json
 import time
 from discord.ext import commands
+from addons.checks import is_staff, check_staff
+from addons import converters
 
 class ModWarn:
     """
@@ -11,20 +13,12 @@ class ModWarn:
         self.bot = bot
         print('Addon "{}" loaded'.format(self.__class__.__name__))
 
+    @is_staff('Helper')
     @commands.command(pass_context=True)
-    async def warn(self, ctx, user, *, reason=""):
+    async def warn(self, ctx, member: converters.SafeMember, *, reason=""):
         """Warn a user. Staff and Helpers only."""
         issuer = ctx.message.author
-        if (self.bot.helpers_role not in issuer.roles) and (self.bot.staff_role not in issuer.roles):
-            msg = "{0} This command is limited to Staff and Helpers.".format(issuer.mention)
-            await self.bot.say(msg)
-            return
-        try:
-            member = ctx.message.mentions[0]
-        except IndexError:
-            await self.bot.say("Please mention a user.")
-            return
-        if self.bot.staff_role in member.roles:
+        if check_staff(member.id, "Helper"):
             await self.bot.say("You can't warn another staffer with this command!")
             return
         with open("data/warnsv2.json", "r") as f:
@@ -40,7 +34,7 @@ class ModWarn:
         if reason != "":
             # much \n
             msg += " The given reason is: " + reason
-        msg += "\n\nPlease read the rules in #welcome-and-rules. This is warn #{}.".format(len(warns[member.id]["warns"]))
+        msg += "\n\nPlease read the rules in <#196618637950451712>. This is warn #{}.".format(len(warns[member.id]["warns"]))
         warn_count = len(warns[member.id]["warns"])
         if warn_count == 2:
             msg += " __The next warn will automatically kick.__"
@@ -67,6 +61,44 @@ class ModWarn:
             msg += "\n✏️ __Reason__: " + reason
         await self.bot.send_message(self.bot.modlogs_channel, msg + ("\nPlease add an explanation below. In the future, it is recommended to use `.warn <user> [reason]` as the reason is automatically sent to the user." if reason == "" else ""))
 
+    @is_staff('OP')
+    @commands.command(pass_context=True)
+    async def softwarn(self, ctx, member: converters.SafeMember, *, reason=""):
+        """Warn a user without automated action. Staff only."""
+        issuer = ctx.message.author
+        if check_staff(member.id, "Helper"):
+            await self.bot.say("You can't warn another staffer with this command!")
+            return
+        with open("data/warnsv2.json", "r") as f:
+            warns = json.load(f)
+        if member.id not in warns:
+            warns[member.id] = {"warns": []}
+        warn_count = len(warns[member.id]["warns"])
+        if warn_count >= 5:
+            await self.bot.say("A user can't have more than 5 warns!")
+            return
+        warns[member.id]["name"] = member.name + "#" + member.discriminator
+        timestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+        warns[member.id]["warns"].append({"issuer_id": issuer.id, "issuer_name": issuer.name, "reason": reason, "timestamp": timestamp})
+        with open("data/warnsv2.json", "w") as f:
+            json.dump(warns, f)
+        msg = "You were warned on {}.".format(self.bot.server.name)
+        if reason != "":
+            # much \n
+            msg += " The given reason is: " + reason
+        msg += "\n\nThis is warn #{}.".format(len(warns[member.id]["warns"]))
+        msg += "\n\nThis won't trigger any action."
+        try:
+            await self.bot.send_message(member, msg)
+        except discord.errors.Forbidden:
+            pass  # don't fail in case user has DMs disabled for this server, or blocked the bot
+        await self.bot.say("{} softwarned. User has {} warning(s)".format(member.mention, len(warns[member.id]["warns"])))
+        msg = "⚠️ **Warned**: {} softwarned {} (warn #{}) | {}#{}".format(issuer.mention, member.mention, len(warns[member.id]["warns"]), member.name, member.discriminator)
+        if reason != "":
+            # much \n
+            msg += "\n✏️ __Reason__: " + reason
+        await self.bot.send_message(self.bot.modlogs_channel, msg + ("\nPlease add an explanation below. In the future, it is recommended to use `.warn <user> [reason]` as the reason is automatically sent to the user." if reason == "" else ""))
+
     @commands.command(pass_context=True)
     async def listwarns(self, ctx, user: discord.Member = None):
         """List warns for a user. Staff and Helpers only."""
@@ -74,7 +106,7 @@ class ModWarn:
             user = ctx.message.author
         issuer = ctx.message.author
         member = user # A bit sloppy but its to reduce the amount of work needed to change below.
-        if (self.bot.helpers_role not in issuer.roles) and (self.bot.staff_role not in issuer.roles) and (member != issuer):
+        if not check_staff(ctx.message.author.id,"Helper") and (member != issuer):
                 msg = "{0} Using this command on others is limited to Staff and Helpers.".format(issuer.mention)
                 await self.bot.say(msg)
                 return
@@ -100,14 +132,10 @@ class ModWarn:
             embed.color = discord.Color.green()
         await self.bot.say("", embed=embed)
 
+    @is_staff("Helper")
     @commands.command(pass_context=True)
     async def listwarnsid(self, ctx, user_id):
         """List warns for a user based on ID. Staff and Helpers only."""
-        issuer = ctx.message.author
-        if (self.bot.helpers_role not in issuer.roles) and (self.bot.staff_role not in issuer.roles):
-            msg = "{0} This command is limited to Staff and Helpers.".format(issuer.mention)
-            await self.bot.say(msg)
-            return
         embed = discord.Embed(color=discord.Color.dark_red())
         with open("data/warnsv2.json", "r") as f:
             warns = json.load(f)
@@ -131,7 +159,7 @@ class ModWarn:
             embed.color = discord.Color.green()
         await self.bot.say("", embed=embed)
 
-    @commands.has_permissions(manage_server=True)
+    @is_staff("SuperOP")
     @commands.command(pass_context=True)
     async def copywarns_id2id(self, ctx, user_id1, user_id2):
         """Copy warns from one user ID to another. Overwrites all warns of the target user ID. Staff only."""
@@ -165,15 +193,10 @@ class ModWarn:
             msg += user_id2
         await self.bot.send_message(self.bot.modlogs_channel, msg)
 
-    @commands.has_permissions(manage_nicknames=True)
+    @is_staff("HalfOP")
     @commands.command(pass_context=True)
-    async def delwarn(self, ctx, user, idx: int):
+    async def delwarn(self, ctx, member: converters.SafeMember, idx: int):
         """Remove a specific warn from a user. Staff only."""
-        try:
-            member = ctx.message.mentions[0]
-        except IndexError:
-            await self.bot.say("Please mention a user.")
-            return
         with open("data/warnsv2.json", "r") as f:
             warns = json.load(f)
         if member.id not in warns:
@@ -199,7 +222,7 @@ class ModWarn:
         msg = "🗑 **Deleted warn**: {} removed warn {} from {} | {}#{}".format(ctx.message.author.mention, idx, member.mention, member.name, member.discriminator)
         await self.bot.send_message(self.bot.modlogs_channel, msg, embed=embed)
 
-    @commands.has_permissions(manage_nicknames=True)
+    @is_staff("HalfOP")
     @commands.command(pass_context=True)
     async def delwarnid(self, ctx, user_id, idx: int):
         """Remove a specific warn from a user based on ID. Staff only."""
@@ -228,15 +251,10 @@ class ModWarn:
         msg = "🗑 **Deleted warn**: {} removed warn {} from {} ({})".format(ctx.message.author.mention, idx, warns[user_id]["name"], user_id)
         await self.bot.send_message(self.bot.modlogs_channel, msg, embed=embed)
 
-    @commands.has_permissions(manage_nicknames=True)
+    @is_staff("HalfOP")
     @commands.command(pass_context=True)
-    async def clearwarns(self, ctx, user):
+    async def clearwarns(self, ctx, member: converters.SafeMember):
         """Clear all warns for a user. Staff only."""
-        try:
-            member = ctx.message.mentions[0]
-        except IndexError:
-            await self.bot.say("Please mention a user.")
-            return
         with open("data/warnsv2.json", "r") as f:
             warns = json.load(f)
         if member.id not in warns:
@@ -253,7 +271,7 @@ class ModWarn:
         msg = "🗑 **Cleared warns**: {} cleared {} warns from {} | {}#{}".format(ctx.message.author.mention, warn_count, member.mention, member.name, member.discriminator)
         await self.bot.send_message(self.bot.modlogs_channel, msg)
 
-    @commands.has_permissions(manage_nicknames=True)
+    @is_staff("HalfOP")
     @commands.command(pass_context=True)
     async def clearwarnsid(self, ctx, user_id):
         """Clear all warns for a user based on ID. Staff only."""
@@ -272,6 +290,15 @@ class ModWarn:
         await self.bot.say("{} no longer has any warns!".format(warns[user_id]["name"]))
         msg = "🗑 **Cleared warns**: {} cleared {} warns from {} ({})".format(ctx.message.author.mention, warn_count, warns[user_id]["name"], user_id)
         await self.bot.send_message(self.bot.modlogs_channel, msg)
+
+    @warn.error
+    @listwarns.error
+    @delwarn.error
+    @clearwarns.error
+    async def warn_error_handler(self, error, ctx):
+        if isinstance(error, commands.errors.BadArgument):
+            await self.bot.say(error)
+
 
 def setup(bot):
     bot.add_cog(ModWarn(bot))
